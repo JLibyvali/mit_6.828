@@ -1,0 +1,8 @@
+[
+{
+  "directory": "/home/jlibyvali/VSCodeProjects/Tutorial/MIT6.828/Lec1/build",
+  "command": "/usr/bin/gcc -g -o CMakeFiles/Lecture1.dir/Temp.c.o -c /home/jlibyvali/VSCodeProjects/Tutorial/MIT6.828/Lec1/Temp.c",
+  "file": "/home/jlibyvali/VSCodeProjects/Tutorial/MIT6.828/Lec1/Temp.c",
+  "output": "CMakeFiles/Lecture1.dir/Temp.c.o"
+}
+]
