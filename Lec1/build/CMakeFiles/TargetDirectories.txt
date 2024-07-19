@@ -1,3 +1,0 @@
-/home/jlibyvali/VSCodeProjects/Tutorial/MIT6.828/Lec1/build/CMakeFiles/Lecture1.dir
-/home/jlibyvali/VSCodeProjects/Tutorial/MIT6.828/Lec1/build/CMakeFiles/edit_cache.dir
-/home/jlibyvali/VSCodeProjects/Tutorial/MIT6.828/Lec1/build/CMakeFiles/rebuild_cache.dir

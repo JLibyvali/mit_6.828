@@ -1,2 +1,7 @@
 */build
 */.cache
+*.o
+*.img
+*.out
+*.log
+
