@@ -1,0 +1,11 @@
+[submodule "xv6-public"]
+    path = xv6_src/xv6-public
+    url = https://github.com/mit-pdos/xv6-public.git
+
+[submodule "xv6-riscv"]
+    path = xv6_src/xv6-riscv
+    url = https://github.com/mit-pdos/xv6-riscv
+
+[submodule "jos"]
+    path = lab_code
+    url  = https://pdos.csail.mit.edu/6.828/2018/jos.git

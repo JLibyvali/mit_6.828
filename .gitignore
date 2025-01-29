@@ -1,5 +1,5 @@
-*/build
-*/.cache
+**/build/**
+**/.cache/**
 *.o
 *.img
 *.out
