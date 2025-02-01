@@ -87,7 +87,6 @@ When BIOS find a bootable disk, it will read disk first sector into physical add
 --- 
 
 
-
 > GNUmakefile:  
 >  Top-level makefile, describe the info `make target rule`, boot/Makefrag nad  kern/Makefrag responsible for compile code.  
 
@@ -162,11 +161,11 @@ the `bootmain()` function will read segment-address data to `ELF-HEADER` address
 
 ```  
 
-> Question At what point does the processor start executing 32-bit code? What exactly causes the switch from 16-bit to 32-bit mode?  
+> `[Q]?` At what point does the processor start executing 32-bit code? What exactly causes the switch from 16-bit to 32-bit mode?  
 
 In `boot.S` code `seta20.2` label, the instructions `.code32` made this conversion happened.   
 
-> Question What is the last instruction of the boot loader executed, and what is the first instruction of the kernel it just loaded?  
+> `[Q]?` What is the last instruction of the boot loader executed, and what is the first instruction of the kernel it just loaded?  
 
 The last instruction of boot loader is in `boot/main.c`, instruction: ` 7d71:	ff 15 18 00 01 00    	call   *0x10018 `.  
 The first instruction of kernel is in `kern/entry.S`, the instruction:  
@@ -176,17 +175,16 @@ The first instruction of kernel is in `kern/entry.S`, the instruction:
 	movw	$0x1234,0x472			# warm boot  
 ```
 
-> Question Where is the first instruction of the kernel?   
+> `[Q]?`  Where is the first instruction of the kernel?   
 
 In kern/entry.S  
 
-> Question How does the boot loader decide how many sectors it must read in order to fetch the entire kernel from disk? Where does it find this information?  
+> `[Q]?`  How does the boot loader decide how many sectors it must read in order to fetch the entire kernel from disk? Where does it find this information?  
 
 Using ELF header struct members. First read a page size memory to address[0x100000] with the struct Elf type. then access struct Elf to get the ELF file end page offset. Then using `readsegt()` function to read correct num sectors.  
 
 #### Loading Kernel  
 ---  
-
 
 
 In this sections, using the `objdump` to read `obj/kern/kern and obj/boot/boot.out` various header tale information. See wiki to know ELF format and its tables [https://en.wikipedia.org/wiki/Executable_and_Linkable_Format](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format).  
@@ -229,27 +227,69 @@ Just thinking, because loading the kernel.img ELF file into `0x00100000` physica
 
 ### PART III. Kernel  
 
+#### Using virtual memory to work around position dependence  
+
+AS we can see above, the `boot.out` link address is equaled with load address, case its the raw physical address, but `kern` link address`0xf0100000` is different with load address`0x00100000`.    
+Case the `kernel` always wanna linking at very high virtual address so that low address space used for user program.    
+Up until `kern/entry.S` sets the CR0_PG flag (via writing a register), memory reference are treated as physical address. Once CR0_PG flag set, memory references are virtual address that translated by hardware to physical address.  
+SO We need do a map about conversion of virtual address and physical address. In this lab we will map 4MB spaces.`entrypgdir.c` finished two map.  1. From kernel memory space `0xf0000000 - 0xf0400000` to physical space `0x00000000 - 0x00400000`.  2. From virtual memory space `0x00000000 - 0x00400000` to physical memory space.  
 
 ---  
 
 * Ex.7: What is the first instruction after the new mapping is established that would fail to work properly if the mapping weren't in place?    
 
+After the instruction `f0100025:	0f 22 c0      	mov    %eax,%cr0`, the kernel address `0xf0100000` is mapped into physical address `0x00100000`. So the `x /8x ADDR` data result is the same.  
+So the first instruction would failed if not mapped properly is  
+
+```c
+f0100028:	b8 2f 00 10 f0       	mov    $0xf010002f,%eax
+f010002d:	ff e0                	jmp    *%eax
+```
+Because it using the kernel virtual address to call function.  If we comment that statements:  
+We will get error,  
+
+```c 
+0xf0100026 <relocated+2>:    Error while running hook_stop:  
+Cannot access memory at address 0xf0100026      
+```  
 
 
-        * From objdump: the bootloader load address and link address are same, but it's different in kernel: load at [0xf0100000] and linked at [0x00100000].    
-        * In 'entry()[at 0x10000c] ': Before enter kernel code, first into entry.S. Base information above, kernel code linked and run from [0xf0100000], So need to map the virtual memory to physical memory within 4MB memory in Lab1.  
-        The mapping finished by page-table handed write in 'entrypgdir.c',  mapping 2 VM(virtual memory) ranges to PM. After entry.S set FLAG(CR0_PG), the VM finished mapping. And jump to KERNELBASE and call  i386_init();
-        * If we comment the important code[movl %eax ,%cr0]: System exit, can't find address [0xf0100000], sucked in 'entry.S'. And 'x /x' output some address not under [0xf0400000]. 
+#### Formatted Printing to the Console  
+
+`printf.c` implemented basic print function formatted print function, variadic arguments printf function.  
+`printfmt.c` implemented various formatted print functions.  
+`console.c` implemented the terminal console and initialized some IO devices via writing the register.  
 
 ---  
 
 * Ex.8: We have omitted a small fragment of code - the code necessary to print octal numbers using patterns of the form "%o". Find and fill in this code fragment.   
 
+```c
+
+// (unsigned) octal
+case 'o':
+  num = getuint(&ap, lflag);
+  base = 8;
+  goto number;  
 
 
-> Question Explain the interface between printf.c and console.c. Specifically, what function does console.c export? How is this function used by printf.c?  
+```
 
-> Question Explain the following from console.c:  
+> `[Q]?` Explain the interface between printf.c and console.c. Specifically, what function does console.c export? How is this function used by printf.c?    
+
+
+* printf.c    
+
+`putch()`  output a char to console, invoke the interface of `console.c`.  
+`vcprintf()` output a formatted string and calculating the output char counts. Invoked the `vprintfmt()` of `printfmt.c`.  
+`cprint()` the C-style like print function.    
+
+* console.c  
+
+Mainly implement IO device initialized function such as Serial, Parallel Port, CGA/VGA Display, Keyboard. And general device independent function owned by CONSOLE. Export these interface: `cons_getc(void)`, `cons_init(void)`, `cputchar(int)`, `cgetchar(void)`, `iscons(void)`.   
+
+
+> `[Q]?` Explain the following from console.c:  
 
 ```c
 1      if (crt_pos >= CRT_SIZE) {
@@ -259,141 +299,189 @@ Just thinking, because loading the kernel.img ELF file into `0x00100000` physica
 5                      crt_buf[i] = 0x0700 | ' ';
 6              crt_pos -= CRT_COLS;
 7      }
-```
+``` 
 
-> Question Trace the execution of the following code step-by-step? These notes cover GCC's calling convention on the x86.  
+CONSOLE using `crt_buf` and `crt_pos` to output char and recording output positions.  SO if output char had filled on page screen,  
+Clear current output buffer, and reset `crt_pos` to next new screen.  
+
+> `[Q]?` Trace the execution of the following code step-by-step? These notes cover GCC's calling convention on the x86.  
 
 ```c 
 int x = 1, y = 3, z = 4;
-cprintf("x %d, y %x, z %d\n", x, y, z);
+cprintf("x %d, y %x, z %d\n", x, y, z);  
 
-// In the call to cprintf(), to what does `fmt` point? To what does `ap` point?
-// List (in order of execution) each call to cons_putc, va_arg, and vcprintf. For cons_putc, list its argument as well. For va_arg, list what ap points to before and after the call. For vcprintf list the values of its two arguments.  
+```  
 
-```
+* In the call to cprintf(), to what does `fmt` point? To what does `ap` point?     
 
-> Question What is the output? Explain how this output is arrived at in the step-by-step manner of the previous exercise:  
+`cprintf()` declaration: `cprintf(const char *fmt, ...)`, so `fmt` point to `"x %d, y %x, z %d\n"` string, `ap` point to arguments list address in order.     
+
+
+* List (in order of execution) each call to `cons_putc`, `va_arg`, and `vcprintf`. For `cons_putc`, list its argument as well. For `va_arg`, list what `ap` points to before and after the call. For `vcprintf` list the values of its two arguments.     
+
+`cons_putc()` is in `console.c`, it defined write char to devices. `cons_putc()` is wrapped by `printf.c/putch()`, `putch()` as callback for some function in `printfmt.c`.    
+`va_arg` used for parsing `va_list ap` pointer, mainly used in printfmt.c `getint()/getuint()/vprintfmt()` functions.    
+`vcprintf()` defined in `printf.c`, to print specific arguments parsed in `cprintf()` function.  
+```c
+
+/* Call Stack: 
+cprintf(const char* fmt, ...) 
+\/
+vcprintf(const char* fmt, va_list ap)
+\/
+void vprintfmt(void (*putch)(int, void *), void *putdat, const char *fmt, va_list ap)
+\/
+printnum()/putch(int ch, int *cnt)
+\/
+cons_putc(int ch)
+*/
+
+// Output: Numbers x= //
+(gdb) f
+#2  0xf0100911 in vcprintf (fmt=0xf01019b3 "Numbers x=%d y=%d z=%d\n", 
+    ap=0xf010afc4 "\001") at kern/printf.c:21
+21              vprintfmt((void*)putch, &cnt, fmt, ap);
+(gdb) p fmt 
+$9 = 0xf01019b3 "Numbers x=%d y=%d z=%d\n"
+(gdb) p ap
+$10 = (va_list) 0xf010afc4 "\001"
+
+// Output: Numbers x=1 //
+(gdb) f
+#4  0xf01010ff in vprintfmt (putch=<optimized out>, putdat=0xf010af8c, 
+    fmt=0xf01019bf " y=%d z=%d\n", ap=0xf010afc8 "\003") at lib/printfmt.c:215
+215           printnum(putch, putdat, num, base, width, padc);
+(gdb) p fmt 
+$23 = 0xf01019bf " y=%d z=%d\n"
+(gdb) p ap
+$24 = (va_list) 0xf010afc8 "\003"
+
+(gdb) f 
+#0  cons_putc (c=c@entry=49) at kern/console.c:436
+436             lpt_putc(c);
+(gdb) p c
+$25 = 49
+
+// Output: Numbers x=1 y=3 //
+(gdb) f
+#4  0xf01010ff in vprintfmt (putch=<optimized out>, putdat=0xf010af8c, 
+    fmt=0xf01019c4 " z=%d\n", ap=0xf010afcc "\004") at lib/printfmt.c:215
+215           printnum(putch, putdat, num, base, width, padc);
+(gdb) p fmt 
+$32 = 0xf01019c4 " z=%d\n"
+(gdb) p ap 
+$33 = (va_list) 0xf010afcc "\004"
+
+(gdb) f
+#0  cons_putc (c=c@entry=51) at kern/console.c:436
+436             lpt_putc(c);
+(gdb) p c
+$34 = 51
+
+
+```  
+As above show, x86 calling convention passing argument Rigth to Left pushed them into stack, so `va_list ap` is `0xf010afc4 -> 0xf010afc8 -> 0xf010afcc`, to access the arguments address. The `va_arg()` finishd the stack address changed.  
+
+
+> `[Q]?` What is the output? Explain how this output is arrived at in the step-by-step manner of the previous exercise:  
 
 ```c
 unsigned int i = 0x00646c72;
 cprintf("H%x Wo%s", 57616, &i);
 
-```
+```  
 
-> Question what is going to be printed after 'y='? (note: the answer is not a specific value.) Why does this happen?  
+**Output:**   
+```c 
+Print i: He110 World
+``` 
+
+Because 57616(hex) = e110(decimal), `va_arg()` parsed `&i` as `rld`.  
+
+> `[Q]?` what is going to be printed after 'y='? (note: the answer is not a specific value.) Why does this happen?  
 
 ```c
 cprintf("x=%d, y=%d\n",3);
-```
-> Question How would you have to change cprintf or its interface so that it would still be possible to pass it a variable number of arguments?  
+```  
 
-Using macro,  
+output `x-3, y=-2671xxx`, because using the statement `unsigned long long num  = static long long getint()`, then `(long long)num` trigger the type overflow.  
+
+> `[Q]?` Let's say that GCC changed its calling convention so that it pushed arguments on the stack in declaration order, so that the last argument is pushed last. How would you have to change cprintf or its interface so that it would still be possible to pass it a variable number of arguments?   
+
+[TODO] HARD!!!  
+
+---  
+##### Challenge
+**Enhance the console to allow text to be printed in different colors. If you're feeling really adventurous, you could try switching the VGA hardware into a graphics mode and making the console draw text onto the graphical frame buffer.**   
+Console printed in different colors, easy.  
+switching VGA to graphics mode? quit.    
+---  
+
+
+#### Stack  
+--- 
+
+* Ex.9: Determine where the kernel initializes its stack, and exactly where in memory its stack is located. How does the kernel reserve space for its stack? And at which "end" of this reserved area is the stack pointer initialized to point to?  
+
+Before call any C function, the machine should initialized stack work done. So the stack initialized in `entry.S:relocated`.  After virtual address paging.  
+`entry.S:reloacted` clear the `EBP` register, and Using GDB can see that `ESP` start from `0xf010b00`.  
+```c 
+Section Headers:
+  [Nr] Name              Type            Addr     Off    Size   
+  [ 0]                   NULL            00000000 000000 000000 
+  [ 1] .text             PROGBITS        f0100000 001000 00194d 
+  [ 2] .rodata           PROGBITS        f0101960 002960 00080c 
+  [ 3] .note.gnu.pr[...] NOTE            f010216c 00316c 000028 
+  [ 4] .stab             PROGBITS        f0102194 003194 000001 
+  [ 5] .stabstr          STRTAB          f0102195 003195 000001 
+  [ 6] .data             PROGBITS        f0103000 004000 00a300
+  [ 7] .bss              PROGBITS        f010d300 00e300 000661 
+
+```  
+And in `entry.S`:  
+```c
+relocated:
+
+	movl	$0x0,%ebp			# nuke frame pointer
+
+	# Set the stack pointer
+	movl	$(bootstacktop),%esp
+
+	# now to C code
+	call	i386_init
+
+// ...............
+	.p2align	PGSHIFT		# force page alignment
+	.globl		bootstack
+bootstack:
+	.space		KSTKSIZE
+	.globl		bootstacktop   
+bootstacktop:
+
+```
+So the stack address space layout:  
+> bootstack(0xf010300), also the `.data` section link address.  
+> bootstacktop(0xf010b00), `ESP` start to decrease.  
+> `.bss` section at (0xf010d300)  
+
+The kernel link the `ESP` at high address to preserve stack address space, the space size = 0xf010b00 - 0xf010300 = 2Kib
 
 ---  
 
-#### Challenge
-**Enhance the console to allow text to be printed in different colors.**  
+* Ex.10:  Examine what happens each time it gets called after the kernel starts. How many 32-bit words does each recursive nesting level of test_backtrace push on the stack, and what are those words?    
+After first call at `init.c:i386_init()`, every time nested call will push 5 32-bit words before.  
+First call set `%EAX` store arguments 'five'. Then every nested call will pretend/know that `%EAX` holds this call fram function argument.  
+Then will push `%EBP %EBX %EBX(After set as %EAX value) $0xf0101960 %EAX(After calculated minos 1)`.  
 
 
 ---  
 
-> Exercies code: finished '%o' format output  
-> origin code:  
-```C
-        // (unsigned) octal
-		case 'o':
-			// Replace this with your code.
-			putch('X', putdat);
-			putch('X', putdat);
-			putch('X', putdat);
-			break;
+* Ex.11:  mon_backtrace() function.  
 
-```
-> Changed code: 
-```C
-		// (unsigned) octal
-		case 'o':
-			num = getint(&ap, lflag);
-			putch('0',putdat);
-			base = 8;
-
-			goto number;
-			break;
-```
-
-> Answer the questions:  
-
-*  ***Explain the interface between printf.c and console.c. Specifically, what function does console.c export? How is this function used by printf.c?***
-     'console.c' export the 'cons_putc()' for printf.c, which can support the const character output.
-* ***Explain the following from console.c:***  
-
-```c
-
-1      if (crt_pos >= CRT_SIZE) {
-2              int i;
-3              memmove(crt_buf, crt_buf + CRT_COLS, (CRT_SIZE - CRT_COLS) * sizeof(uint16_t));
-4              for (i = CRT_SIZE - CRT_COLS; i < CRT_SIZE; i++)
-5                      crt_buf[i] = 0x0700 | ' ';
-6              crt_pos -= CRT_COLS;
-7      }
-
-```
-    'crt_pos' was position pointer. Whole console size:25x80, if the pointer moved to edge, move the pointer to the '0 col', and other data to next line.
-    
-* ***Let's say that GCC changed its calling convention so that it pushed arguments on the stack in declaration order, so that the last argument is pushed last. How would you have to change cprintf or its interface so that it would still be possible to pass it a variable number of arguments?***
-
-> Challenge:
-Challenge Enhance the console to allow text to be printed in different colors. The traditional way to do this is to make it interpret ANSI escape sequences embedded in the text strings printed to the console, but you may use any mechanism you like. There is plenty of information on the 6.828 reference page and elsewhere on the web on programming the VGA display hardware. If you're feeling really adventurous, you could try switching the VGA hardware into a graphics mode and making the console draw text onto the graphical frame buffer.  
-
-#### Stack
-* 9. : Kernel initializes the stack in 'entry.S': movl $(bootstacktop),%esp[0xf0100034].  Kernel push the 'entry_pgdir' memory address into %esp and push [0x00] into $ebp  to reserve the kernel space. And the %esp point to [0xf010b021], kernel base is [0xf0000000]. It also the stack top position.
-
-* 10. StackBacktrace:  Every time getting into 'test_backtrace',  first the stack-frame [$eip] register also called Program counter register will storaged the return address , which is the stack next instruction. Then call another 'test_backtrace' will entry new stack frame, at the begning of new frame, first 'push $ebp' and 'mov $esp, $ebp' storaged stack-frame information to $ebp. Every time getting into 'test_backtrace' will push 2 32-bit words into stack, the $ebp and $ebx storaging stack infomation and arguments.
+OK!!
 
 
-* 11. Implement the function in monitor.c: mon_backtrace().  
-code from others:
-```c
-	// Your code here.
+* Ex.12: Modify your stack backtrace function to display, for each eip, the function name, source file name, and line number corresponding to that eip.   
 
-	uint32_t *ebp;
+[TODO]  
 
-	ebp = (uint32_t *) read_ebp();
-	cprintf("Stack Backtrace:\n");
-
-	while (ebp!=0) {
-		cprintf("  ebp %08x",ebp);
-		cprintf("  eip %08x",*(ebp+1));
-		
-		cprintf(" args");
-		cprintf(" %08x",*(ebp+2));
-		cprintf(" %08x",*(ebp+3));
-		cprintf(" %08x",*(ebp+4));
-		cprintf(" %08x",*(ebp+5));
-		cprintf(" %08x\n",*(ebp+6));
-
-		ebp = (uint32_t*) *ebp;
-	}
-	
-```
-
-* 12. Modify your stack backtrace function to display, for each eip, the function name, source file name, and line number corresponding to that eip.
-        * look for the lab's information to understand what the __STAB_* from.  
-```C
-	// Search within [lline, rline] for the line number stab.
-	// If found, set info->eip_line to the right line number.
-	// If not found, return -1.
-	//
-	// Hint:
-	//	There's a particular stabs type used for line numbers.
-	//	Look at the STABS documentation and <inc/stab.h> to find
-	//	which one.
-	// Your code here.
-	stab_binsearch(stabs, &lline, &rline, N_SLINE, addr);
-
-	if(lline <= rline){
-		info->eip_line = stabs[rline].n_desc;
-	}else{
-		return -1;
-	}
-```
