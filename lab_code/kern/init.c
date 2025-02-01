@@ -5,20 +5,9 @@
 #include <inc/stdio.h>
 #include <inc/string.h>
 #include <kern/console.h>
+#include <kern/kclock.h>
 #include <kern/monitor.h>
-
-// Test the stack backtrace function (lab 1 only)
-void test_backtrace(int x)
-{
-    cprintf("entering test_backtrace %d\n", x);
-
-    if (x > 0)
-        test_backtrace(x - 1);
-    else
-        mon_backtrace(0, 0, 0);
-
-    cprintf("leaving test_backtrace %d\n", x);
-}
+#include <kern/pmap.h>
 
 void i386_init(void)
 {
@@ -46,10 +35,10 @@ void i386_init(void)
 
     cprintf("Test: x=%d, y=%d \n", 3);
 
-    // Test the stack backtrace function (lab 1 only)
-    cprintf(ANSI_FG_MAGENTA ANSI_BG_WHITE "\n------------------------ STACK BACKTRACE TEST"
+    cprintf(ANSI_FG_MAGENTA ANSI_BG_WHITE "\n------------------------ Page Memory Init "
                                           "-------------------\n" ANSI_NONE);
-    test_backtrace(5);
+    // Lab 2 memory management initialization functions
+    mem_init();
 
     // Drop into the kernel monitor.
     while (1)
