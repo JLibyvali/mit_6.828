@@ -174,6 +174,7 @@ extern volatile pde_t uvpd[];  // VA of current page directory
 struct PageInfo
 {
     // Next page on the free list.
+	// If not null indicates that the physical page is already in page_free_list.  
     struct PageInfo *pp_link;
 
     // pp_ref is the count of pointers (usually in page table entries)
@@ -181,6 +182,7 @@ struct PageInfo
     // Pages allocated at boot time using pmap.c's
     // boot_alloc do not have valid reference count fields.
 
+    // indicates that physical page is in used state.  
     uint16_t         pp_ref;
 };
 

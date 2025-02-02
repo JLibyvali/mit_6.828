@@ -67,9 +67,9 @@ void        _panic(const char *file, int line, const char *fmt, ...)
     asm volatile("cli; cld");
 
     va_start(ap, fmt);
-    cprintf("kernel panic at %s:%d: ", file, line);
+    cprintf(ANSI_FG_RED ANSI_BG_YELLOW "kernel panic at %s:%d: ", file, line);
     vcprintf(fmt, ap);
-    cprintf("\n");
+    cprintf("\n" ANSI_NONE);
     va_end(ap);
 
 dead:

@@ -54,13 +54,13 @@ typedef int32_t off_t;
 })
 
 // Rounding operations (efficient when n is a power of 2)
-// Round down to the nearest multiple of n
+// Round down `a` to the nearest multiple of n
 #define ROUNDDOWN(a, n)						\
 ({								\
 	uint32_t __a = (uint32_t) (a);				\
 	(typeof(a)) (__a - __a % (n));				\
 })
-// Round up to the nearest multiple of n
+// Round up `a` to the nearest multiple of n
 #define ROUNDUP(a, n)						\
 ({								\
 	uint32_t __n = (uint32_t) (n);				\

@@ -2,8 +2,8 @@
 
 ## Pre-required  
 1GBit: 0x40000000(Hex)  
-1MBit: 0x100000(Hex)  
-1KBit: 0x400(Hex)  
+1MBit: 0x00100000(Hex)  
+1KBit: 0x00000400(Hex)  
 
 > 16-bit Intel 8088 hard-wired memory layout.   
 
