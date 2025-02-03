@@ -52,7 +52,19 @@ So if we try to cast a `physaddr_t` to `uint32_t*` and dereference it, We may be
 
 `mystery_t` should be uintptr_t.  
 
-And for `address value` translation, `PADDR(kva) and KADDR(pa)` responsible for this work.  
+And for `address` translation, `PADDR(kva) and KADDR(pa)` responsible for this work. The `PADDR(kva)` and `KADDR(pa)` design intention.  
+Sometime, JOS wanna read or modify memory for which it knows only the physical address.  
+For example, add a mapping to a page table may require allocating physical memory to store a page directory and then initializing that memory.  
+However, kernel couldn't bypass virtual address translation and directly load or store to physical address.  
+**One reason JOS remapped** all physical memory starting from `0x00000000` at virtual address `0xf0000000` is to help JOS read and write memory for which knows just the physical address. Just need Using physical address add `0xf0000000`.  So KADDR(pa) finished that.  
+And sometimes, JOS also wanna find a physical address given the virtual address of the memory in which kernel data structure is stored. So using virtual address subtract `0xf0000000`, PADDR(kva) macro finished this work.  
 
+#### Reference counting  
 
+---  
+
+In future labs will often have the same physical page mapped at multiple virtual address simultaneously. SO need keep a count of the number of references to each physical page in 	`pp_ref` filed of `struct PageInfo` corresponding to the physical page.  When this count goes to zero , the page can be free.  
+
+--- 
+* Ex.4: implemented functions `pgdir_walk(), boot_map_region(), page_lookup(), page_remove(), page_insert()`.  
 

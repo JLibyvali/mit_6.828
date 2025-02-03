@@ -22,23 +22,23 @@
  * Virtual memory map:                                Permissions
  *                                                    kernel/user
  *
- *    4 Gig -------->  +------------------------------+
+ *    4 Gig -------->  +------------------------------+ // 0x100000000
  *                     |                              | RW/--
  *                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *                     :              .               :
+ *                     :              .               :                     256Mib
  *                     :              .               :
  *                     :              .               :
  *                     |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| RW/--
  *                     |                              | RW/--
  *                     |   Remapped Physical Memory   | RW/--
  *                     |                              | RW/--
- *    KERNBASE, ---->  +------------------------------+ 0xf0000000      --+	// 256MB
- *    KSTACKTOP        |     CPU0's Kernel Stack      | RW/--  KSTKSIZE   |
+ *    KERNBASE, ---->  +------------------------------+ 0xf0000000      --+	// 3840 Mib
+ *    KSTACKTOP        |     CPU0's Kernel Stack      | RW/--  KSTKSIZE   | // KSTKSIZE = 8*PGSIZE =32 Kib
  *                     | - - - - - - - - - - - - - - -|                   |
- *                     |      Invalid Memory (*)      | --/--  KSTKGAP    |
+ *                     |      Invalid Memory (*)      | --/--  KSTKGAP    | //  KSTKGAP = KSTKSIZE
  *                     +------------------------------+                   |
  *                     |     CPU1's Kernel Stack      | RW/--  KSTKSIZE   |
- *                     | - - - - - - - - - - - - - - -|                 PTSIZE
+ *                     | - - - - - - - - - - - - - - -|                 PTSIZE // PTSIZE = 1024*PGSIZE
  *                     |      Invalid Memory (*)      | --/--  KSTKGAP    |
  *                     +------------------------------+                   |
  *                     :              .               :                   |
@@ -174,7 +174,7 @@ extern volatile pde_t uvpd[];  // VA of current page directory
 struct PageInfo
 {
     // Next page on the free list.
-	// If not null indicates that the physical page is already in page_free_list.  
+    // If not null indicates that the physical page is already in page_free_list.
     struct PageInfo *pp_link;
 
     // pp_ref is the count of pointers (usually in page table entries)
@@ -182,7 +182,7 @@ struct PageInfo
     // Pages allocated at boot time using pmap.c's
     // boot_alloc do not have valid reference count fields.
 
-    // indicates that physical page is in used state.  
+    // indicates that physical page is in used state.
     uint16_t         pp_ref;
 };
 
